@@ -20,29 +20,55 @@ class CryptoMonitor:
         # Supabase
         supabase_url = os.getenv("SUPABASE_URL")
         supabase_key = os.getenv("SUPABASE_KEY")
-        self.supabase: Client = create_client(supabase_url, supabase_key)
+        
+        if not supabase_url or not supabase_key:
+            raise ValueError("SUPABASE_URL e SUPABASE_KEY devem estar configurados")
+        
+        try:
+            self.supabase: Client = create_client(supabase_url, supabase_key)
+            print("✅ Conectado ao Supabase")
+        except Exception as e:
+            print(f"❌ Erro ao conectar com Supabase: {e}")
+            raise
         
         # Google Sheets
         self.setup_google_sheets()
     
     def setup_google_sheets(self):
         """Configura conexão com Google Sheets"""
-        creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
-        creds_dict = json.loads(creds_json)
-        
-        scopes = [
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive'
-        ]
-        
-        credentials = Credentials.from_service_account_info(
-            creds_dict, 
-            scopes=scopes
-        )
-        
-        self.gc = gspread.authorize(credentials)
-        spreadsheet_id = os.getenv("SPREADSHEET_ID")
-        self.sheet = self.gc.open_by_key(spreadsheet_id).sheet1
+        try:
+            creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+            
+            if not creds_json:
+                raise ValueError("GOOGLE_CREDENTIALS_JSON não configurado")
+            
+            creds_dict = json.loads(creds_json)
+            
+            scopes = [
+                'https://www.googleapis.com/auth/spreadsheets',
+                'https://www.googleapis.com/auth/drive'
+            ]
+            
+            credentials = Credentials.from_service_account_info(
+                creds_dict, 
+                scopes=scopes
+            )
+            
+            self.gc = gspread.authorize(credentials)
+            spreadsheet_id = os.getenv("SPREADSHEET_ID")
+            
+            if not spreadsheet_id:
+                raise ValueError("SPREADSHEET_ID não configurado")
+            
+            self.sheet = self.gc.open_by_key(spreadsheet_id).sheet1
+            print("✅ Conectado ao Google Sheets")
+            
+        except json.JSONDecodeError as e:
+            print(f"❌ Erro ao decodificar JSON do Google: {e}")
+            raise
+        except Exception as e:
+            print(f"❌ Erro ao configurar Google Sheets: {e}")
+            raise
     
     def get_binance_prices(self) -> List[Dict]:
         """Obtém preços da Binance"""
