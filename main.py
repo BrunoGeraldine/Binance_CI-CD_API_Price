@@ -7,6 +7,13 @@ from supabase import create_client, Client
 import gspread
 from google.oauth2.service_account import Credentials
 
+# Carrega variáveis de ambiente do arquivo .env (para testes locais)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # No GitHub Actions não precisa do dotenv
+
 # Configurações
 BINANCE_API_URL = "https://api.binance.com/api/v3"
 SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]

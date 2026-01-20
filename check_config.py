@@ -1,6 +1,21 @@
 import os
 import json
 import sys
+from pathlib import Path
+
+# Carrega variáveis do arquivo .env
+try:
+    from dotenv import load_dotenv
+    
+    # Procura o arquivo .env
+    env_path = Path('.env')
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"📁 Arquivo .env encontrado e carregado\n")
+    else:
+        print(f"⚠️  Arquivo .env não encontrado no diretório atual\n")
+except ImportError:
+    print("⚠️  python-dotenv não instalado. Execute: pip install python-dotenv\n")
 
 def check_env_var(name, is_json=False):
     """Verifica se uma variável de ambiente está configurada"""
