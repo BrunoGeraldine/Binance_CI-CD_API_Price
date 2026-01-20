@@ -1,0 +1,141 @@
+import os
+import json
+from datetime import datetime
+from typing import List, Dict
+import requests
+from supabase import create_client, Client
+import gspread
+from google.oauth2.service_account import Credentials
+
+# Configurações
+BINANCE_API_URL = "https://api.binance.com/api/v3"
+SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]
+
+class CryptoMonitor:
+    def __init__(self):
+        # Binance
+        self.binance_api_key = os.getenv("BINANCE_API_KEY")
+        self.binance_secret = os.getenv("BINANCE_SECRET_KEY")
+        
+        # Supabase
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_KEY")
+        self.supabase: Client = create_client(supabase_url, supabase_key)
+        
+        # Google Sheets
+        self.setup_google_sheets()
+    
+    def setup_google_sheets(self):
+        """Configura conexão com Google Sheets"""
+        creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+        creds_dict = json.loads(creds_json)
+        
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive'
+        ]
+        
+        credentials = Credentials.from_service_account_info(
+            creds_dict, 
+            scopes=scopes
+        )
+        
+        self.gc = gspread.authorize(credentials)
+        spreadsheet_id = os.getenv("SPREADSHEET_ID")
+        self.sheet = self.gc.open_by_key(spreadsheet_id).sheet1
+    
+    def get_binance_prices(self) -> List[Dict]:
+        """Obtém preços da Binance"""
+        prices_data = []
+        
+        for symbol in SYMBOLS:
+            try:
+                # Preço atual
+                ticker_url = f"{BINANCE_API_URL}/ticker/24hr"
+                params = {"symbol": symbol}
+                
+                response = requests.get(ticker_url, params=params)
+                response.raise_for_status()
+                data = response.json()
+                
+                prices_data.append({
+                    "symbol": symbol,
+                    "price": float(data["lastPrice"]),
+                    "volume_24h": float(data["volume"]),
+                    "price_change_24h": float(data["priceChangePercent"]),
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+            except Exception as e:
+                print(f"Erro ao obter preço de {symbol}: {e}")
+        
+        return prices_data
+    
+    def save_to_supabase(self, prices_data: List[Dict]):
+        """Salva dados no Supabase"""
+        try:
+            for data in prices_data:
+                self.supabase.table("crypto_prices").insert(data).execute()
+            print(f"✅ {len(prices_data)} registros salvos no Supabase")
+        except Exception as e:
+            print(f"❌ Erro ao salvar no Supabase: {e}")
+    
+    def update_google_sheets(self, prices_data: List[Dict]):
+        """Atualiza Google Sheets"""
+        try:
+            # Cabeçalho
+            headers = [
+                "Criptomoeda", 
+                "Preço (USDT)", 
+                "Variação 24h (%)", 
+                "Volume 24h",
+                "Última Atualização"
+            ]
+            
+            # Dados
+            rows = [headers]
+            for data in prices_data:
+                rows.append([
+                    data["symbol"].replace("USDT", ""),
+                    f"${data['price']:,.2f}",
+                    f"{data['price_change_24h']:.2f}%",
+                    f"${data['volume_24h']:,.0f}",
+                    datetime.fromisoformat(data["timestamp"]).strftime("%d/%m/%Y %H:%M:%S")
+                ])
+            
+            # Limpa e atualiza a planilha
+            self.sheet.clear()
+            self.sheet.update('A1', rows)
+            
+            # Formata cabeçalho
+            self.sheet.format('A1:E1', {
+                "backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.2},
+                "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}
+            })
+            
+            print("✅ Google Sheets atualizado com sucesso")
+            
+        except Exception as e:
+            print(f"❌ Erro ao atualizar Google Sheets: {e}")
+    
+    def run(self):
+        """Executa o processo completo"""
+        print("🚀 Iniciando coleta de dados...")
+        
+        # 1. Obtém preços
+        prices_data = self.get_binance_prices()
+        print(f"📊 Obtidos {len(prices_data)} preços da Binance")
+        
+        # 2. Salva no Supabase
+        if prices_data:
+            self.save_to_supabase(prices_data)
+        
+        # 3. Atualiza Google Sheets
+        if prices_data:
+            self.update_google_sheets(prices_data)
+        
+        print("✨ Processo concluído!")
+
+if __name__ == "__main__":
+    monitor = CryptoMonitor()
+    monitor.run()
