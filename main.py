@@ -8,14 +8,14 @@ import gspread
 from google.oauth2.service_account import Credentials
 import time
 
-# Carrega variáveis de ambiente do arquivo .env (para testes locais)
+# Load environment variables from .env file (for local testing)
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    pass  # No GitHub Actions não precisa do dotenv
+    pass  # GitHub Actions does not need dotenv
 
-# Configurações
+# Configuration
 BINANCE_API_URL = "https://api.binance.com/api/v3"
 SYMBOLS = ["BTCUSDC", "ETHUSDC", "BNBUSDC", "XRPUSDC", "SOLUSDC", "LINKUSDC"]
 
@@ -30,25 +30,25 @@ class CryptoMonitor:
         supabase_key = os.getenv("SUPABASE_KEY")
         
         if not supabase_url or not supabase_key:
-            raise ValueError("SUPABASE_URL e SUPABASE_KEY devem estar configurados")
+            raise ValueError("SUPABASE_URL and SUPABASE_KEY must be configured")
         
         try:
             self.supabase: Client = create_client(supabase_url, supabase_key)
-            print("✅ Conectado ao Supabase")
+            print("✅ Connected to Supabase")
         except Exception as e:
-            print(f"❌ Erro ao conectar com Supabase: {e}")
+            print(f"❌ Error connecting to Supabase: {e}")
             raise
         
         # Google Sheets
         self.setup_google_sheets()
     
     def setup_google_sheets(self):
-        """Configura conexão com Google Sheets"""
+        """Setup connection with Google Sheets"""
         try:
             creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
             
             if not creds_json:
-                raise ValueError("GOOGLE_CREDENTIALS_JSON não configurado")
+                raise ValueError("GOOGLE_CREDENTIALS_JSON not configured")
             
             creds_dict = json.loads(creds_json)
             
@@ -66,22 +66,22 @@ class CryptoMonitor:
             spreadsheet_id = os.getenv("SPREADSHEET_ID")
             
             if not spreadsheet_id:
-                raise ValueError("SPREADSHEET_ID não configurado")
+                raise ValueError("SPREADSHEET_ID not configured")
             
             self.sheet = self.gc.open_by_key(spreadsheet_id).sheet1
-            print("✅ Conectado ao Google Sheets")
+            print("✅ Connected to Google Sheets")
             
         except json.JSONDecodeError as e:
-            print(f"❌ Erro ao decodificar JSON do Google: {e}")
+            print(f"❌ Error decoding Google JSON: {e}")
             raise
         except Exception as e:
-            print(f"❌ Erro ao configurar Google Sheets: {e}")
+            print(f"❌ Error setting up Google Sheets: {e}")
             raise
     
     def _get_all_prices_from_coingecko(self) -> Dict[str, Dict]:
-        """Obtém todos os preços do CoinGecko em uma única requisição (evita rate limiting)"""
+        """Get all prices from CoinGecko in a single request (avoids rate limiting)"""
         try:
-            # Mapeia símbolos da Binance para IDs do CoinGecko
+            # Map Binance symbols to CoinGecko IDs
             symbol_map = {
                 "BTCUSDC": "bitcoin",
                 "ETHUSDC": "ethereum",
@@ -91,10 +91,10 @@ class CryptoMonitor:
                 "LINKUSDC": "chainlink"
             }
             
-            # Junta todos os IDs em uma única string separada por vírgula
+            # Join all IDs in a single comma-separated string
             all_ids = ",".join(symbol_map.values())
             
-            # Usa CoinGecko API (pública, sem necessidade de chave)
+            # Use CoinGecko API (public, no key needed)
             url = f"https://api.coingecko.com/api/v3/simple/price"
             params = {
                 "ids": all_ids,
@@ -103,7 +103,7 @@ class CryptoMonitor:
                 "include_24hr_change": "true"
             }
             
-            # Retry com backoff exponencial para lidar com rate limiting
+            # Retry with exponential backoff to handle rate limiting
             max_retries = 3
             for attempt in range(max_retries):
                 try:
@@ -111,7 +111,7 @@ class CryptoMonitor:
                     response.raise_for_status()
                     data = response.json()
                     
-                    # Converte os dados para o formato esperado
+                    # Convert data to expected format
                     result = {}
                     for symbol, coin_id in symbol_map.items():
                         if coin_id in data:
@@ -124,38 +124,38 @@ class CryptoMonitor:
                                 "timestamp": datetime.now().isoformat(),
                                 "source": "CoinGecko"
                             }
-                            print(f"  ✓ {symbol}: Obtido de CoinGecko")
+                            print(f"  ✓ {symbol}: Retrieved from CoinGecko")
                     
                     return result
                     
                 except requests.exceptions.HTTPError as e:
                     if e.response.status_code == 429 and attempt < max_retries - 1:
                         wait_time = (2 ** attempt) * 2  # 2s, 4s, 8s
-                        print(f"  ⏳ Rate limit atingido, aguardando {wait_time}s antes de tentar novamente...")
+                        print(f"  ⏳ Rate limit reached, waiting {wait_time}s before retrying...")
                         time.sleep(wait_time)
                     else:
                         raise
             
         except Exception as e:
-            print(f"  ✗ Erro ao obter preços do CoinGecko: {e}")
+            print(f"  ✗ Error retrieving prices from CoinGecko: {e}")
         
         return {}
     
     def get_binance_prices(self) -> List[Dict]:
-        """Obtém preços da Binance, usando CoinGecko como fallback"""
+        """Get prices from Binance, using CoinGecko as fallback"""
         prices_data = []
         failed_symbols = []
         
-        # Headers para evitar bloqueio
+        # Headers to prevent blocking
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept': 'application/json'
         }
         
-        # Primeiro tenta obter de cada símbolo da Binance
+        # First try to get each symbol from Binance
         for symbol in SYMBOLS:
             try:
-                # Usa endpoint público sem autenticação
+                # Use public endpoint without authentication
                 ticker_url = f"{BINANCE_API_URL}/ticker/24hr"
                 params = {"symbol": symbol}
                 
@@ -166,9 +166,9 @@ class CryptoMonitor:
                     timeout=10
                 )
                 
-                # Se der erro 451 (bloqueio geográfico), marca para buscar no CoinGecko
+                # If error 451 (geographic blocking), mark for CoinGecko lookup
                 if response.status_code == 451:
-                    print(f"⚠️  {symbol}: Bloqueado geograficamente (erro 451)")
+                    print(f"⚠️  {symbol}: Geographically blocked (error 451)")
                     failed_symbols.append(symbol)
                     continue
                 
@@ -183,37 +183,37 @@ class CryptoMonitor:
                     "timestamp": datetime.now().isoformat(),
                     "source": "Binance"
                 })
-                print(f"  ✓ {symbol}: Obtido da Binance")
+                print(f"  ✓ {symbol}: Retrieved from Binance")
                 
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 451:
-                    print(f"⚠️  {symbol}: Bloqueado geograficamente (erro 451)")
+                    print(f"⚠️  {symbol}: Geographically blocked (error 451)")
                     failed_symbols.append(symbol)
                 else:
-                    print(f"  ✗ Erro HTTP ao obter {symbol}: {e}")
+                    print(f"  ✗ HTTP error retrieving {symbol}: {e}")
                     failed_symbols.append(symbol)
             except Exception as e:
-                print(f"  ✗ Erro ao obter preço de {symbol}: {e}")
+                print(f"  ✗ Error retrieving price for {symbol}: {e}")
                 failed_symbols.append(symbol)
         
-        # Se houver símbolos que falharam, busca todos de uma vez no CoinGecko
+        # If there are failed symbols, fetch all at once from CoinGecko
         if failed_symbols:
-            print(f"\n🔄 Buscando {len(failed_symbols)} criptomoedas no CoinGecko (API alternativa)...")
+            print(f"\n🔄 Retrieving {len(failed_symbols)} cryptocurrencies from CoinGecko (alternative API)...")
             coingecko_data = self._get_all_prices_from_coingecko()
             
-            # Adiciona os dados do CoinGecko para os símbolos que falharam
+            # Add CoinGecko data for failed symbols
             for symbol in failed_symbols:
                 if symbol in coingecko_data:
                     prices_data.append(coingecko_data[symbol])
                 else:
-                    print(f"  ✗ Não foi possível obter preço de {symbol}")
+                    print(f"  ✗ Could not retrieve price for {symbol}")
         
         return prices_data
     
     def save_to_supabase(self, prices_data: List[Dict]):
-        """Salva dados no Supabase"""
+        """Save data to Supabase"""
         if not prices_data:
-            print("⚠️  Nenhum dado para salvar no Supabase")
+            print("⚠️  No data to save to Supabase")
             return
         
         try:
@@ -222,36 +222,36 @@ class CryptoMonitor:
                 try:
                     result = self.supabase.table("crypto_prices").insert(data).execute()
                     saved_count += 1
-                    print(f"  ✓ {data['symbol']}: ${data['price']:.2f} (fonte: {data['source']})")
+                    print(f"  ✓ {data['symbol']}: ${data['price']:.2f} (source: {data['source']})")
                 except Exception as e:
-                    print(f"  ✗ Erro ao salvar {data['symbol']}: {e}")
+                    print(f"  ✗ Error saving {data['symbol']}: {e}")
             
-            print(f"✅ {saved_count}/{len(prices_data)} registros salvos no Supabase")
+            print(f"✅ {saved_count}/{len(prices_data)} records saved to Supabase")
         except Exception as e:
-            print(f"❌ Erro geral ao salvar no Supabase: {e}")
+            print(f"❌ General error saving to Supabase: {e}")
             import traceback
             traceback.print_exc()
     
     def update_google_sheets(self, prices_data: List[Dict]):
-        """Atualiza Google Sheets com coluna Source"""
+        """Update Google Sheets with Source column"""
         if not prices_data:
-            print("⚠️  Nenhum dado para atualizar no Google Sheets")
+            print("⚠️  No data to update in Google Sheets")
             return
         
         try:
-            print(f"📝 Preparando dados para {len(prices_data)} criptomoedas...")
+            print(f"📝 Preparing data for {len(prices_data)} cryptocurrencies...")
             
-            # Cabeçalho - INCLUINDO A COLUNA SOURCE
+            # Header - INCLUDING SOURCE COLUMN
             headers = [
-                "Criptomoeda", 
-                "Preço (USDC)", 
-                "Variação 24h (%)", 
-                "Volume 24h",
-                "Source",  # Nova coluna
-                "Última Atualização"
+                "Cryptocurrency", 
+                "Price (USDC)", 
+                "24h Change (%)", 
+                "24h Volume",
+                "Source",  # New column
+                "Last Updated"
             ]
             
-            # Dados
+            # Data
             rows = [headers]
             for data in prices_data:
                 rows.append([
@@ -259,68 +259,68 @@ class CryptoMonitor:
                     f"${data['price']:,.2f}",
                     f"{data['price_change_24h']:.2f}%",
                     f"${data['volume_24h']:,.0f}",
-                    data["source"],  # Fonte dos dados (Binance ou CoinGecko)
-                    datetime.fromisoformat(data["timestamp"]).strftime("%d/%m/%Y %H:%M:%S")
+                    data["source"],  # Data source (Binance or CoinGecko)
+                    datetime.fromisoformat(data["timestamp"]).strftime("%m/%d/%Y %H:%M:%S")
                 ])
             
-            print(f"📤 Enviando {len(rows)} linhas para Google Sheets...")
+            print(f"📤 Sending {len(rows)} rows to Google Sheets...")
             
-            # Limpa e atualiza a planilha
+            # Clear and update the spreadsheet
             self.sheet.clear()
             self.sheet.update(range_name='A1', values=rows)
             
-            print(f"🎨 Aplicando formatação...")
+            print(f"🎨 Applying formatting...")
             
-            # Formata cabeçalho
+            # Format header
             self.sheet.format('A1:F1', {
                 "backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.2},
                 "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}
             })
             
-            print("✅ Google Sheets atualizado com sucesso")
+            print("✅ Google Sheets updated successfully")
             
         except Exception as e:
-            print(f"❌ Erro ao atualizar Google Sheets: {e}")
+            print(f"❌ Error updating Google Sheets: {e}")
             import traceback
             traceback.print_exc()
     
     def run(self):
-        """Executa o processo completo"""
+        """Execute the complete process"""
         print("=" * 60)
-        print("🚀 CRYPTO MONITOR - Iniciando coleta de dados...")
+        print("🚀 CRYPTO MONITOR - Starting data collection...")
         print("=" * 60)
         print()
         
-        # 1. Obtém preços
-        print("1️⃣  Coletando preços da Binance...")
+        # 1. Get prices
+        print("1️⃣  Collecting prices from Binance...")
         prices_data = self.get_binance_prices()
         
         if not prices_data:
-            print("❌ Nenhum dado coletado. Encerrando.")
+            print("❌ No data collected. Exiting.")
             return
         
-        print(f"\n✅ Obtidos {len(prices_data)}/{len(SYMBOLS)} preços com sucesso")
+        print(f"\n✅ Retrieved {len(prices_data)}/{len(SYMBOLS)} prices successfully")
         print()
         
-        # Mostra resumo dos dados coletados
-        print("📊 Resumo dos dados coletados:")
+        # Show summary of collected data
+        print("📊 Summary of collected data:")
         for data in prices_data:
             source_icon = "🟢" if data['source'] == "Binance" else "🔵"
             print(f"  {source_icon} {data['symbol']}: ${data['price']:,.2f} ({data['price_change_24h']:+.2f}%) - {data['source']}")
         print()
         
-        # 2. Salva no Supabase
-        print("2️⃣  Salvando no Supabase...")
+        # 2. Save to Supabase
+        print("2️⃣  Saving to Supabase...")
         self.save_to_supabase(prices_data)
         print()
         
-        # 3. Atualiza Google Sheets
-        print("3️⃣  Atualizando Google Sheets...")
+        # 3. Update Google Sheets
+        print("3️⃣  Updating Google Sheets...")
         self.update_google_sheets(prices_data)
         print()
         
         print("=" * 60)
-        print("✨ PROCESSO CONCLUÍDO COM SUCESSO!")
+        print("✨ PROCESS COMPLETED SUCCESSFULLY!")
         print("=" * 60)
 
 if __name__ == "__main__":

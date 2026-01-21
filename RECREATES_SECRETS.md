@@ -1,56 +1,56 @@
-# 🔑 Guia para Recriar os Secrets do GitHub Actions
+# 🔑 Guide to Recreating GitHub Actions Secrets
 
-## ⚠️ Problema Identificado
+## ⚠️ Problem Identified
 
-O código funciona **perfeitamente** localmente, mas **falha** no GitHub Actions. Isso indica que o problema está nos **Secrets** do GitHub.
+The code works **perfectly** locally, but **fails** on GitHub Actions. This indicates that the problem is in the GitHub **Secrets**.
 
-## 📋 Checklist de Verificação
+## 📋 Verification Checklist
 
-Antes de recriar, verifique:
+Before recreating, verify:
 
-- [ ] O código funciona localmente (`python main.py`)
-- [ ] Todas as variáveis estão no arquivo `.env`
-- [ ] O arquivo `.env` não tem espaços antes/depois do `=`
-- [ ] O JSON do Google está em uma linha única
-- [ ] A planilha foi compartilhada com o service account
+- [ ] The code works locally (`python main.py`)
+- [ ] All variables are in the `.env` file
+- [ ] The `.env` file has no spaces before/after the `=`
+- [ ] The Google JSON is on a single line
+- [ ] The spreadsheet was shared with the service account
 
-## 🔧 Passo a Passo para Recriar os Secrets
+## 🔧 Step-by-Step to Recreate Secrets
 
-### 1. Valide suas credenciais localmente
+### 1. Validate your credentials locally
 
 ```bash
-# Execute estes scripts para garantir que tudo está OK
+# Run these scripts to make sure everything is OK
 python validate_google_json.py
 python test_connections.py
 python main.py
 ```
 
-Se TODOS passarem, suas credenciais locais estão corretas.
+If ALL pass, your local credentials are correct.
 
-### 2. Exporte os valores do .env
+### 2. Export the .env values
 
 ```bash
-# No terminal, no diretório do projeto
+# In the terminal, in the project directory
 cat .env
 ```
 
-Copie cada valor. Você vai precisar deles.
+Copy each value. You will need them.
 
-### 3. Acesse os Secrets do GitHub
+### 3. Access GitHub Secrets
 
-1. Vá no seu repositório no GitHub
-2. Clique em **Settings** (⚙️)
-3. No menu lateral, clique em **Secrets and variables** → **Actions**
-4. Você verá a lista de secrets
+1. Go to your repository on GitHub
+2. Click **Settings** (⚙️)
+3. In the left menu, click **Secrets and variables** → **Actions**
+4. You will see the list of secrets
 
-### 4. Delete TODOS os secrets antigos
+### 4. Delete ALL old secrets
 
-Para cada secret:
-1. Clique no secret
-2. Clique em **Remove secret**
-3. Confirme
+For each secret:
+1. Click on the secret
+2. Click **Remove secret**
+3. Confirm
 
-Delete na seguinte ordem:
+Delete in the following order:
 - BINANCE_API_KEY
 - BINANCE_SECRET_KEY
 - SUPABASE_URL
@@ -58,21 +58,21 @@ Delete na seguinte ordem:
 - SPREADSHEET_ID
 - GOOGLE_CREDENTIALS_JSON
 
-### 5. Recrie os secrets (na ordem)
+### 5. Recreate the secrets (in order)
 
 #### 5.1 BINANCE_API_KEY
 
-1. Clique em **New repository secret**
+1. Click **New repository secret**
 2. Name: `BINANCE_API_KEY`
-3. Secret: Cole o valor do seu `.env` (só o valor, sem aspas)
-4. Clique em **Add secret**
+3. Secret: Paste the value from your `.env` (just the value, without quotes)
+4. Click **Add secret**
 
-**Formato correto:**
+**Correct format:**
 ```
 WMSt5PUw2AblahblahblahCbXUqugc
 ```
 
-**❌ ERRADO:**
+**❌ WRONG:**
 ```
 BINANCE_API_KEY=WMSt5PUw2A...
 "WMSt5PUw2A..."
@@ -83,17 +83,17 @@ BINANCE_API_KEY=WMSt5PUw2A...
 
 1. **New repository secret**
 2. Name: `BINANCE_SECRET_KEY`
-3. Secret: Cole o valor do `.env`
+3. Secret: Paste the value from `.env`
 4. **Add secret**
 
 #### 5.3 SUPABASE_URL
 
 1. **New repository secret**
 2. Name: `SUPABASE_URL`
-3. Secret: Cole a URL completa (deve começar com `https://` e terminar com `.supabase.co`)
+3. Secret: Paste the complete URL (must start with `https://` and end with `.supabase.co`)
 4. **Add secret**
 
-**Exemplo:**
+**Example:**
 ```
 https://qsnkdjfhskjfh.supabase.co
 ```
@@ -102,12 +102,12 @@ https://qsnkdjfhskjfh.supabase.co
 
 1. **New repository secret**
 2. Name: `SUPABASE_KEY`
-3. Secret: Cole a chave **anon/public** (deve começar com `eyJ`)
+3. Secret: Paste the **anon/public** key (must start with `eyJ`)
 4. **Add secret**
 
-**⚠️ IMPORTANTE:** Use a chave **anon/public**, NÃO a service_role!
+**⚠️ IMPORTANT:** Use the **anon/public** key, NOT the service_role!
 
-No Supabase:
+In Supabase:
 - Settings → API → Project API keys → **anon/public** ✅
 - Settings → API → Project API keys → ~~service_role~~ ❌
 
@@ -115,40 +115,40 @@ No Supabase:
 
 1. **New repository secret**
 2. Name: `SPREADSHEET_ID`
-3. Secret: Cole apenas o ID (da URL da planilha)
+3. Secret: Paste only the ID (from the spreadsheet URL)
 4. **Add secret**
 
-**Como obter:**
+**How to get it:**
 ```
 URL: https://docs.google.com/spreadsheets/d/1BgEEZObNjblahblahUhutvtyw/edit
                                               ^^^^^^^^^^^^^^^^^^^^
-                                              Cole apenas esta parte
+                                              Paste only this part
 ```
 
-#### 5.6 GOOGLE_CREDENTIALS_JSON (CRÍTICO!)
+#### 5.6 GOOGLE_CREDENTIALS_JSON (CRITICAL!)
 
-Este é o mais complicado e onde geralmente está o erro.
+This is the most complicated and where the error usually happens.
 
-**Método 1: Copiar do .env (Recomendado)**
+**Method 1: Copy from .env (Recommended)**
 
-1. Abra o arquivo `.env` no seu editor
-2. Localize a linha `GOOGLE_CREDENTIALS_JSON=`
-3. Copie TUDO que está depois do `=`, incluindo as chaves `{}`
-4. Cole no GitHub Secret
+1. Open the `.env` file in your editor
+2. Locate the line `GOOGLE_CREDENTIALS_JSON=`
+3. Copy EVERYTHING after the `=`, including the `{}` braces
+4. Paste in the GitHub Secret
 
-**Método 2: Copiar do arquivo JSON original**
+**Method 2: Copy from the original JSON file**
 
-1. Abra o arquivo `.json` baixado do Google Cloud
-2. Copie TODO o conteúdo
-3. **IMPORTANTE:** Remova TODAS as quebras de linha
-4. Deve ficar em UMA ÚNICA LINHA
+1. Open the `.json` file downloaded from Google Cloud
+2. Copy ALL the content
+3. **IMPORTANT:** Remove ALL line breaks
+4. Must be in ONE SINGLE LINE
 
-**Exemplo correto (tudo em uma linha):**
+**Correct example (all in one line):**
 ```json
 {"type":"service_account","project_id":"crypto-monitor-123456","private_key_id":"abc123def456","private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0B...\n-----END PRIVATE KEY-----\n","client_email":"crypto-sheets@crypto-monitor-123456.iam.gserviceaccount.com","client_id":"123456789","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/crypto-sheets%40crypto-monitor-123456.iam.gserviceaccount.com"}
 ```
 
-**❌ ERRADO (com quebras de linha):**
+**❌ WRONG (with line breaks):**
 ```json
 {
   "type": "service_account",
@@ -157,34 +157,34 @@ Este é o mais complicado e onde geralmente está o erro.
 }
 ```
 
-**Como converter de várias linhas para uma:**
+**How to convert from multiple lines to one:**
 
 ```bash
 # Linux/Mac
 cat google-credentials.json | jq -c . | pbcopy
 
-# Ou manualmente no editor:
-# 1. Selecione tudo
-# 2. Procure e substitua: \n por nada (vazio)
-# 3. Certifique-se de que não há espaços extras
+# Or manually in the editor:
+# 1. Select all
+# 2. Find and replace: \n with nothing (empty)
+# 3. Make sure there are no extra spaces
 ```
 
-### 6. Valide o JSON antes de adicionar
+### 6. Validate the JSON before adding
 
 ```bash
-# Copie o JSON para um arquivo temporário
-echo 'COLE_O_JSON_AQUI' > /tmp/test.json
+# Copy the JSON to a temporary file
+echo 'PASTE_THE_JSON_HERE' > /tmp/test.json
 
-# Valide
-python3 -c "import json; print('✅ JSON válido' if json.load(open('/tmp/test.json')) else '❌ JSON inválido')"
+# Validate
+python3 -c "import json; print('✅ Valid JSON' if json.load(open('/tmp/test.json')) else '❌ Invalid JSON')"
 
-# Limpe
+# Clean up
 rm /tmp/test.json
 ```
 
-### 7. Verifique os Secrets criados
+### 7. Verify the created secrets
 
-Após criar todos, você deve ver:
+After creating all, you should see:
 
 ```
 ✅ BINANCE_API_KEY
@@ -195,86 +195,81 @@ Após criar todos, você deve ver:
 ✅ GOOGLE_CREDENTIALS_JSON
 ```
 
-### 8. Teste com o Workflow de Debug
+### 8. Test with Debug Workflow
 
-1. Vá em **Actions**
-2. Selecione **Crypto Monitor (Debug Mode)**
-3. Clique em **Run workflow**
-4. Selecione `main`
+1. Go to **Actions**
+2. Select **Crypto Monitor (Debug Mode)**
+3. Click **Run workflow**
+4. Select `main`
 5. **Run workflow**
 
-Este workflow vai mostrar:
-- ✅ Tamanho de cada secret
-- ✅ Se os formatos estão corretos
-- ✅ Se consegue conectar em cada serviço
-- ✅ Logs detalhados de cada etapa
+This workflow will show:
+- ✅ Size of each secret
+- ✅ If formats are correct
+- ✅ If it can connect to each service
+- ✅ Detailed logs of each step
 
-### 9. Analise os Logs
+### 9. Analyze the Logs
 
-Vá para a execução e veja os logs. Procure por:
+Go to the execution and check the logs. Look for:
 
-**Se der erro no Supabase:**
+**If Supabase error:**
 ```
-❌ Erro ao conectar com Supabase: ...
+❌ Error connecting to Supabase: ...
 ```
-→ Problema: SUPABASE_URL ou SUPABASE_KEY incorretos
+→ Problem: SUPABASE_URL or SUPABASE_KEY incorrect
 
-**Se der erro no Google Sheets:**
+**If Google Sheets error:**
 ```
-❌ Erro ao configurar Google Sheets: ...
+❌ Error setting up Google Sheets: ...
 ```
-→ Problema: GOOGLE_CREDENTIALS_JSON ou SPREADSHEET_ID incorretos
+→ Problem: GOOGLE_CREDENTIALS_JSON or SPREADSHEET_ID incorrect
 
-**Se o JSON estiver quebrado:**
+**If JSON is broken:**
 ```
-❌ Erro ao decodificar JSON do Google: ...
+❌ Error decoding Google JSON: ...
 ```
-→ Problema: JSON com quebras de linha ou formato incorreto
+→ Problem: JSON with line breaks or incorrect format
 
-## 🎯 Checklist Final
+## 🎯 Final Checklist
 
-Depois de recriar todos os secrets:
+After recreating all secrets:
 
-- [ ] Execute o workflow de debug
-- [ ] Verifique se todos os checks passaram (✅)
-- [ ] Verifique se o Supabase foi atualizado
-- [ ] Verifique se o Google Sheets foi atualizado
-- [ ] Se tudo estiver OK, o workflow normal funcionará
+- [ ] Run the debug workflow
+- [ ] Check if all checks passed (✅)
+- [ ] Check if Supabase was updated
+- [ ] Check if Google Sheets was updated
+- [ ] If everything is OK, the normal workflow will work
 
-## 🆘 Ainda não funciona?
+## 🆘 Still not working?
 
-Se mesmo depois de recriar os secrets não funcionar:
+If even after recreating the secrets it doesn't work:
 
-1. **Compare os valores:**
+1. **Compare the values:**
    ```bash
-   # Local (funciona)
+   # Local (works)
    cat .env
    
-   # GitHub (compare com os secrets)
+   # GitHub (compare with the secrets)
    ```
 
-2. **Verifique caracter por caracter:**
-   - Não pode ter espaços extras
-   - Não pode ter aspas
-   - Não pode ter quebras de linha (exceto no private_key do JSON)
+2. **Check character by character:**
+   - Cannot have extra spaces
+   - Cannot have quotes
+   - Cannot have line breaks (except in the private_key of the JSON)
 
-3. **Teste o JSON separadamente:**
-   ```bash
-   python validate_google_json.py
-   ```
+3. **Check the spreadsheet:**
+   - Is it shared with the service account?
+   - Does it have Editor permission?
+   - Is the ID correct?
 
-4. **Verifique a planilha:**
-   - Está compartilhada com o service account?
-   - Tem permissão de Editor?
-   - O ID está correto?
+## 💡 Pro Tip
 
-## 💡 Dica Pro
-
-Para garantir que o JSON está correto, use este comando para gerar uma versão "minificada":
+To ensure the JSON is correct, use this command to generate a "minified" version:
 
 ```bash
-# Pega o JSON do .env e minifica
+# Takes the JSON from .env and minifies it
 grep GOOGLE_CREDENTIALS_JSON .env | cut -d'=' -f2- | python3 -c "import sys, json; print(json.dumps(json.load(sys.stdin)))"
 ```
 
-Cole o resultado diretamente no GitHub Secret.
+Paste the result directly into the GitHub Secret.
