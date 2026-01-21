@@ -16,7 +16,7 @@ except ImportError:
 
 # Configurações
 BINANCE_API_URL = "https://api.binance.com/api/v3"
-SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]
+SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LINKUSDT", "SOLUSDT", "XRPUSDT"]
 
 class CryptoMonitor:
     def __init__(self):
