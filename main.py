@@ -159,7 +159,7 @@ class CryptoMonitor:
             
             # Limpa e atualiza a planilha
             self.sheet.clear()
-            self.sheet.update('A1', rows)
+            self.sheet.update(range_name='A1', values=rows)
             
             print(f"🎨 Aplicando formatação...")
             

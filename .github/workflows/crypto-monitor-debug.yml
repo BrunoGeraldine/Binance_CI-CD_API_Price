@@ -1,0 +1,143 @@
+name: Crypto Monitor (Debug Mode)
+
+on:
+  workflow_dispatch: # Apenas execução manual para debug
+
+jobs:
+  debug-crypto-monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Debug - Informações do ambiente
+        run: |
+          echo "═══════════════════════════════════════════════════════════"
+          echo "🔍 INFORMAÇÕES DO AMBIENTE"
+          echo "═══════════════════════════════════════════════════════════"
+          echo "Sistema Operacional: $(uname -a)"
+          echo "Python: $(python --version)"
+          echo "Pip: $(pip --version)"
+          echo "Diretório atual: $(pwd)"
+          echo ""
+          echo "Arquivos no repositório:"
+          ls -la
+          echo "═══════════════════════════════════════════════════════════"
+      
+      - name: Instalar dependências
+        run: |
+          echo "📦 Instalando dependências..."
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          echo ""
+          echo "✅ Dependências instaladas:"
+          pip list | grep -E "(supabase|gspread|requests|websockets|httpx)"
+          echo "═══════════════════════════════════════════════════════════"
+      
+      - name: Debug - Verificar Secrets (tamanhos)
+        env:
+          BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
+          BINANCE_SECRET_KEY: ${{ secrets.BINANCE_SECRET_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        run: |
+          echo "═══════════════════════════════════════════════════════════"
+          echo "🔐 VERIFICANDO SECRETS (apenas tamanhos e formatos)"
+          echo "═══════════════════════════════════════════════════════════"
+          
+          check_secret() {
+            local name=$1
+            local value=$2
+            if [ -z "$value" ]; then
+              echo "❌ $name: NÃO DEFINIDO"
+            else
+              echo "✅ $name: ${#value} caracteres"
+            fi
+          }
+          
+          check_secret "BINANCE_API_KEY" "$BINANCE_API_KEY"
+          check_secret "BINANCE_SECRET_KEY" "$BINANCE_SECRET_KEY"
+          check_secret "SUPABASE_URL" "$SUPABASE_URL"
+          check_secret "SUPABASE_KEY" "$SUPABASE_KEY"
+          check_secret "SPREADSHEET_ID" "$SPREADSHEET_ID"
+          check_secret "GOOGLE_CREDENTIALS_JSON" "$GOOGLE_CREDENTIALS_JSON"
+          
+          echo ""
+          echo "🔍 Verificando formatos:"
+          
+          if [[ $SUPABASE_URL == https://*.supabase.co ]]; then
+            echo "✅ SUPABASE_URL: formato correto"
+          else
+            echo "⚠️  SUPABASE_URL: formato suspeito - deveria começar com https:// e terminar com .supabase.co"
+          fi
+          
+          if [[ $SUPABASE_KEY == eyJ* ]]; then
+            echo "✅ SUPABASE_KEY: formato correto (JWT)"
+          else
+            echo "⚠️  SUPABASE_KEY: formato suspeito - deveria começar com 'eyJ'"
+          fi
+          
+          if [[ $GOOGLE_CREDENTIALS_JSON == {* ]]; then
+            echo "✅ GOOGLE_CREDENTIALS_JSON: formato correto (JSON)"
+          else
+            echo "⚠️  GOOGLE_CREDENTIALS_JSON: formato suspeito - deveria começar com '{'"
+          fi
+          
+          echo "═══════════════════════════════════════════════════════════"
+      
+      - name: Verificar configuração
+        env:
+          BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
+          BINANCE_SECRET_KEY: ${{ secrets.BINANCE_SECRET_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        run: |
+          echo "🔍 Verificando configuração..."
+          python check_config.py
+      
+      - name: Testar conexões
+        env:
+          BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
+          BINANCE_SECRET_KEY: ${{ secrets.BINANCE_SECRET_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        run: |
+          echo "🧪 Testando conexões..."
+          python test_connections.py || echo "⚠️ Alguns testes falharam"
+      
+      - name: Executar script principal
+        env:
+          BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
+          BINANCE_SECRET_KEY: ${{ secrets.BINANCE_SECRET_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        run: |
+          echo "═══════════════════════════════════════════════════════════"
+          echo "🚀 EXECUTANDO SCRIPT PRINCIPAL"
+          echo "═══════════════════════════════════════════════════════════"
+          python main.py
+      
+      - name: Resumo final
+        if: always()
+        run: |
+          echo "═══════════════════════════════════════════════════════════"
+          echo "📊 RESUMO DA EXECUÇÃO"
+          echo "═══════════════════════════════════════════════════════════"
+          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "Status: ${{ job.status }}"
+          echo "═══════════════════════════════════════════════════════════"
