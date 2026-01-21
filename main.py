@@ -6,6 +6,7 @@ import requests
 from supabase import create_client, Client
 import gspread
 from google.oauth2.service_account import Credentials
+import time
 
 # Carrega variáveis de ambiente do arquivo .env (para testes locais)
 try:
@@ -77,9 +78,73 @@ class CryptoMonitor:
             print(f"❌ Erro ao configurar Google Sheets: {e}")
             raise
     
+    def _get_all_prices_from_coingecko(self) -> Dict[str, Dict]:
+        """Obtém todos os preços do CoinGecko em uma única requisição (evita rate limiting)"""
+        try:
+            # Mapeia símbolos da Binance para IDs do CoinGecko
+            symbol_map = {
+                "BTCUSDC": "bitcoin",
+                "ETHUSDC": "ethereum",
+                "BNBUSDC": "binancecoin",
+                "XRPUSDC": "ripple",
+                "SOLUSDC": "solana",
+                "LINKUSDC": "chainlink"
+            }
+            
+            # Junta todos os IDs em uma única string separada por vírgula
+            all_ids = ",".join(symbol_map.values())
+            
+            # Usa CoinGecko API (pública, sem necessidade de chave)
+            url = f"https://api.coingecko.com/api/v3/simple/price"
+            params = {
+                "ids": all_ids,
+                "vs_currencies": "usd",
+                "include_24hr_vol": "true",
+                "include_24hr_change": "true"
+            }
+            
+            # Retry com backoff exponencial para lidar com rate limiting
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    response = requests.get(url, params=params, timeout=15)
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Converte os dados para o formato esperado
+                    result = {}
+                    for symbol, coin_id in symbol_map.items():
+                        if coin_id in data:
+                            coin_data = data[coin_id]
+                            result[symbol] = {
+                                "symbol": symbol,
+                                "price": float(coin_data["usd"]),
+                                "volume_24h": float(coin_data.get("usd_24h_vol", 0)),
+                                "price_change_24h": float(coin_data.get("usd_24h_change", 0)),
+                                "timestamp": datetime.now().isoformat(),
+                                "source": "CoinGecko"
+                            }
+                            print(f"  ✓ {symbol}: Obtido de CoinGecko")
+                    
+                    return result
+                    
+                except requests.exceptions.HTTPError as e:
+                    if e.response.status_code == 429 and attempt < max_retries - 1:
+                        wait_time = (2 ** attempt) * 2  # 2s, 4s, 8s
+                        print(f"  ⏳ Rate limit atingido, aguardando {wait_time}s antes de tentar novamente...")
+                        time.sleep(wait_time)
+                    else:
+                        raise
+            
+        except Exception as e:
+            print(f"  ✗ Erro ao obter preços do CoinGecko: {e}")
+        
+        return {}
+    
     def get_binance_prices(self) -> List[Dict]:
-        """Obtém preços da Binance"""
+        """Obtém preços da Binance, usando CoinGecko como fallback"""
         prices_data = []
+        failed_symbols = []
         
         # Headers para evitar bloqueio
         headers = {
@@ -87,6 +152,7 @@ class CryptoMonitor:
             'Accept': 'application/json'
         }
         
+        # Primeiro tenta obter de cada símbolo da Binance
         for symbol in SYMBOLS:
             try:
                 # Usa endpoint público sem autenticação
@@ -100,16 +166,11 @@ class CryptoMonitor:
                     timeout=10
                 )
                 
-                # Se der erro 451, tenta API alternativa
+                # Se der erro 451 (bloqueio geográfico), marca para buscar no CoinGecko
                 if response.status_code == 451:
-                    print(f"⚠️  {symbol}: Bloqueado geograficamente (erro 451), usando API alternativa...")
-                    alt_response = self._get_price_from_alternative(symbol)
-                    if alt_response:
-                        prices_data.append(alt_response)
-                        continue
-                    else:
-                        print(f"  ✗ Não foi possível obter preço de {symbol}")
-                        continue
+                    print(f"⚠️  {symbol}: Bloqueado geograficamente (erro 451)")
+                    failed_symbols.append(symbol)
+                    continue
                 
                 response.raise_for_status()
                 data = response.json()
@@ -122,68 +183,32 @@ class CryptoMonitor:
                     "timestamp": datetime.now().isoformat(),
                     "source": "Binance"
                 })
+                print(f"  ✓ {symbol}: Obtido da Binance")
                 
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 451:
-                    print(f"⚠️  {symbol}: Bloqueado geograficamente (erro 451), usando API alternativa...")
-                    alt_response = self._get_price_from_alternative(symbol)
-                    if alt_response:
-                        prices_data.append(alt_response)
-                    else:
-                        print(f"  ✗ Não foi possível obter preço de {symbol}")
+                    print(f"⚠️  {symbol}: Bloqueado geograficamente (erro 451)")
+                    failed_symbols.append(symbol)
                 else:
                     print(f"  ✗ Erro HTTP ao obter {symbol}: {e}")
+                    failed_symbols.append(symbol)
             except Exception as e:
                 print(f"  ✗ Erro ao obter preço de {symbol}: {e}")
+                failed_symbols.append(symbol)
+        
+        # Se houver símbolos que falharam, busca todos de uma vez no CoinGecko
+        if failed_symbols:
+            print(f"\n🔄 Buscando {len(failed_symbols)} criptomoedas no CoinGecko (API alternativa)...")
+            coingecko_data = self._get_all_prices_from_coingecko()
+            
+            # Adiciona os dados do CoinGecko para os símbolos que falharam
+            for symbol in failed_symbols:
+                if symbol in coingecko_data:
+                    prices_data.append(coingecko_data[symbol])
+                else:
+                    print(f"  ✗ Não foi possível obter preço de {symbol}")
         
         return prices_data
-    
-    def _get_price_from_alternative(self, symbol: str) -> Dict:
-        """Tenta obter preço de fonte alternativa (CoinGecko, CoinCap, etc)"""
-        try:
-            # Mapeia símbolos da Binance para IDs do CoinGecko
-            symbol_map = {
-                "BTCUSDC": "bitcoin",
-                "ETHUSDC": "ethereum",
-                "BNBUSDC": "binancecoin",
-                "XRPUSDC": "ripple",
-                "SOLUSDC": "solana",
-                "LINKUSDC": "chainlink"
-            }
-            
-            coin_id = symbol_map.get(symbol)
-            if not coin_id:
-                return None
-            
-            # Usa CoinGecko API (pública, sem necessidade de chave)
-            url = f"https://api.coingecko.com/api/v3/simple/price"
-            params = {
-                "ids": coin_id,
-                "vs_currencies": "usd",
-                "include_24hr_vol": "true",
-                "include_24hr_change": "true"
-            }
-            
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            if coin_id in data:
-                coin_data = data[coin_id]
-                print(f"  ✓ {symbol}: Obtido de CoinGecko")
-                return {
-                    "symbol": symbol,
-                    "price": float(coin_data["usd"]),
-                    "volume_24h": float(coin_data.get("usd_24h_vol", 0)),
-                    "price_change_24h": float(coin_data.get("usd_24h_change", 0)),
-                    "timestamp": datetime.now().isoformat(),
-                    "source": "CoinGecko"
-                }
-            
-        except Exception as e:
-            print(f"  ✗ Erro ao usar fonte alternativa para {symbol}: {e}")
-        
-        return None
     
     def save_to_supabase(self, prices_data: List[Dict]):
         """Salva dados no Supabase"""
@@ -197,7 +222,7 @@ class CryptoMonitor:
                 try:
                     result = self.supabase.table("crypto_prices").insert(data).execute()
                     saved_count += 1
-                    print(f"  ✓ {data['symbol']}: ${data['price']:.2f}")
+                    print(f"  ✓ {data['symbol']}: ${data['price']:.2f} (fonte: {data['source']})")
                 except Exception as e:
                     print(f"  ✗ Erro ao salvar {data['symbol']}: {e}")
             
@@ -208,7 +233,7 @@ class CryptoMonitor:
             traceback.print_exc()
     
     def update_google_sheets(self, prices_data: List[Dict]):
-        """Atualiza Google Sheets"""
+        """Atualiza Google Sheets com coluna Source"""
         if not prices_data:
             print("⚠️  Nenhum dado para atualizar no Google Sheets")
             return
@@ -216,12 +241,13 @@ class CryptoMonitor:
         try:
             print(f"📝 Preparando dados para {len(prices_data)} criptomoedas...")
             
-            # Cabeçalho
+            # Cabeçalho - INCLUINDO A COLUNA SOURCE
             headers = [
                 "Criptomoeda", 
                 "Preço (USDC)", 
                 "Variação 24h (%)", 
                 "Volume 24h",
+                "Source",  # Nova coluna
                 "Última Atualização"
             ]
             
@@ -233,6 +259,7 @@ class CryptoMonitor:
                     f"${data['price']:,.2f}",
                     f"{data['price_change_24h']:.2f}%",
                     f"${data['volume_24h']:,.0f}",
+                    data["source"],  # Fonte dos dados (Binance ou CoinGecko)
                     datetime.fromisoformat(data["timestamp"]).strftime("%d/%m/%Y %H:%M:%S")
                 ])
             
@@ -269,16 +296,17 @@ class CryptoMonitor:
         prices_data = self.get_binance_prices()
         
         if not prices_data:
-            print("❌ Nenhum dado coletado da Binance. Encerrando.")
+            print("❌ Nenhum dado coletado. Encerrando.")
             return
         
-        print(f"✅ Obtidos {len(prices_data)} preços da Binance")
+        print(f"\n✅ Obtidos {len(prices_data)}/{len(SYMBOLS)} preços com sucesso")
         print()
         
         # Mostra resumo dos dados coletados
         print("📊 Resumo dos dados coletados:")
         for data in prices_data:
-            print(f"  • {data['symbol']}: ${data['price']:,.2f} ({data['price_change_24h']:+.2f}%)")
+            source_icon = "🟢" if data['source'] == "Binance" else "🔵"
+            print(f"  {source_icon} {data['symbol']}: ${data['price']:,.2f} ({data['price_change_24h']:+.2f}%) - {data['source']}")
         print()
         
         # 2. Salva no Supabase
