@@ -16,7 +16,7 @@ except ImportError:
 
 # Configurações
 BINANCE_API_URL = "https://api.binance.com/api/v3"
-SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]
+SYMBOLS = ["BTCUSDC", "ETHUSDC", "BNBUSDC", "XRPUSDC", "SOLUSDC", "LINKUSDC"]
 
 class CryptoMonitor:
     def __init__(self):
@@ -143,11 +143,12 @@ class CryptoMonitor:
         try:
             # Mapeia símbolos da Binance para IDs do CoinGecko
             symbol_map = {
-                "BTCUSDT": "bitcoin",
-                "ETHUSDT": "ethereum",
-                "BNBUSDT": "binancecoin",
-                "ADAUSDT": "cardano",
-                "SOLUSDT": "solana"
+                "BTCUSDC": "bitcoin",
+                "ETHUSDC": "ethereum",
+                "BNBUSDC": "binancecoin",
+                "XRPUSDC": "ripple",
+                "SOLUSDC": "solana",
+                "LINKUSDC": "chainlink"
             }
             
             coin_id = symbol_map.get(symbol)
@@ -218,7 +219,7 @@ class CryptoMonitor:
             # Cabeçalho
             headers = [
                 "Criptomoeda", 
-                "Preço (USDT)", 
+                "Preço (USDC)", 
                 "Variação 24h (%)", 
                 "Volume 24h",
                 "Última Atualização"
@@ -228,7 +229,7 @@ class CryptoMonitor:
             rows = [headers]
             for data in prices_data:
                 rows.append([
-                    data["symbol"].replace("USDT", ""),
+                    data["symbol"].replace("USDC", ""),
                     f"${data['price']:,.2f}",
                     f"{data['price_change_24h']:.2f}%",
                     f"${data['volume_24h']:,.0f}",
