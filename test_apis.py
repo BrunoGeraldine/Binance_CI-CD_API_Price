@@ -12,7 +12,7 @@ def test_binance():
     
     try:
         url = "https://api.binance.com/api/v3/ticker/24hr"
-        params = {"symbol": "BTCUSDT"}
+        params = {"symbol": "BTCUSDC"}
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept': 'application/json'
@@ -33,7 +33,7 @@ def test_binance():
         data = response.json()
         
         print(f"✅ Binance acessível!")
-        print(f"💰 BTC/USDT: ${float(data['lastPrice']):,.2f}")
+        print(f"💰 BTC/USDC: ${float(data['lastPrice']):,.2f}")
         print(f"📈 Variação 24h: {float(data['priceChangePercent']):.2f}%")
         return True
         
