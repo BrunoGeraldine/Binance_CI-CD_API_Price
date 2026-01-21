@@ -7,6 +7,8 @@ Automated system for monitoring cryptocurrencies that collects data from Binance
 ![Binance API](https://img.shields.io/badge/Binance-API-yellow)
 ![CoinGecko API](https://img.shields.io/badge/CoinGecko-API-green)
 
+
+
 ## 📋 Table of Contents
 
 - [Features](#-features)
