@@ -16,7 +16,7 @@ except ImportError:
 
 # Configurações
 BINANCE_API_URL = "https://api.binance.com/api/v3"
-SYMBOLS = ["BTCUSDC", "ETHUSDC", "BNBUSDC", "ADAUSDC", "SOLUSDC"]
+SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]
 
 class CryptoMonitor:
     def __init__(self):
@@ -81,13 +81,37 @@ class CryptoMonitor:
         """Obtém preços da Binance"""
         prices_data = []
         
+        # Headers para evitar bloqueio
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json'
+        }
+        
         for symbol in SYMBOLS:
             try:
-                # Preço atual
+                # Usa endpoint público sem autenticação
                 ticker_url = f"{BINANCE_API_URL}/ticker/24hr"
                 params = {"symbol": symbol}
                 
-                response = requests.get(ticker_url, params=params)
+                response = requests.get(
+                    ticker_url, 
+                    params=params,
+                    headers=headers,
+                    timeout=10
+                )
+                
+                # Se der erro 451, tenta API alternativa
+                if response.status_code == 451:
+                    print(f"⚠️  Binance bloqueou requisição para {symbol}, tentando API alternativa...")
+                    # Tenta API da Binance US ou outras exchanges
+                    alt_response = self._get_price_from_alternative(symbol)
+                    if alt_response:
+                        prices_data.append(alt_response)
+                        continue
+                    else:
+                        print(f"  ✗ Não foi possível obter preço de {symbol}")
+                        continue
+                
                 response.raise_for_status()
                 data = response.json()
                 
@@ -99,10 +123,60 @@ class CryptoMonitor:
                     "timestamp": datetime.now().isoformat()
                 })
                 
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 451:
+                    print(f"⚠️  {symbol}: Bloqueado geograficamente (erro 451)")
+                else:
+                    print(f"  ✗ Erro HTTP ao obter {symbol}: {e}")
             except Exception as e:
-                print(f"Erro ao obter preço de {symbol}: {e}")
+                print(f"  ✗ Erro ao obter preço de {symbol}: {e}")
         
         return prices_data
+    
+    def _get_price_from_alternative(self, symbol: str) -> Dict:
+        """Tenta obter preço de fonte alternativa (CoinGecko, CoinCap, etc)"""
+        try:
+            # Mapeia símbolos da Binance para IDs do CoinGecko
+            symbol_map = {
+                "BTCUSDT": "bitcoin",
+                "ETHUSDT": "ethereum",
+                "BNBUSDT": "binancecoin",
+                "ADAUSDT": "cardano",
+                "SOLUSDT": "solana"
+            }
+            
+            coin_id = symbol_map.get(symbol)
+            if not coin_id:
+                return None
+            
+            # Usa CoinGecko API (pública, sem necessidade de chave)
+            url = f"https://api.coingecko.com/api/v3/simple/price"
+            params = {
+                "ids": coin_id,
+                "vs_currencies": "usd",
+                "include_24hr_vol": "true",
+                "include_24hr_change": "true"
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            if coin_id in data:
+                coin_data = data[coin_id]
+                print(f"  ✓ {symbol}: Obtido de CoinGecko")
+                return {
+                    "symbol": symbol,
+                    "price": float(coin_data["usd"]),
+                    "volume_24h": float(coin_data.get("usd_24h_vol", 0)),
+                    "price_change_24h": float(coin_data.get("usd_24h_change", 0)),
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+        except Exception as e:
+            print(f"  ✗ Erro ao usar fonte alternativa para {symbol}: {e}")
+        
+        return None
     
     def save_to_supabase(self, prices_data: List[Dict]):
         """Salva dados no Supabase"""
@@ -138,7 +212,7 @@ class CryptoMonitor:
             # Cabeçalho
             headers = [
                 "Criptomoeda", 
-                "Preço (USDC)", 
+                "Preço (USDT)", 
                 "Variação 24h (%)", 
                 "Volume 24h",
                 "Última Atualização"
@@ -148,7 +222,7 @@ class CryptoMonitor:
             rows = [headers]
             for data in prices_data:
                 rows.append([
-                    data["symbol"].replace("USDC", ""),
+                    data["symbol"].replace("USDT", ""),
                     f"${data['price']:,.2f}",
                     f"{data['price_change_24h']:.2f}%",
                     f"${data['volume_24h']:,.0f}",

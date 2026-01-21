@@ -340,6 +340,20 @@ crypto-monitor/
 
 ## 🔧 Troubleshooting
 
+### Erro 451: Binance bloqueada geograficamente
+
+Se você receber o erro `451 Client Error` ao executar no GitHub Actions:
+
+```
+Erro ao obter preço de BTCUSDT: 451 Client Error
+```
+
+**Causa**: A Binance bloqueia requisições de certos países/regiões, incluindo os servidores do GitHub Actions (localizados nos EUA).
+
+**Solução**: O código agora usa automaticamente uma API alternativa (CoinGecko) quando a Binance está bloqueada. Nenhuma ação adicional é necessária.
+
+**Nota**: As chaves de API da Binance (`BINANCE_API_KEY` e `BINANCE_SECRET_KEY`) não são mais necessárias para coletar preços públicos, mas você pode mantê-las configuradas para uso futuro.
+
 ### Erro: "Invalid API Key"
 
 - Verifique se as credenciais da Binance estão corretas
