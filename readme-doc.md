@@ -3,8 +3,9 @@
 Automated system for monitoring cryptocurrencies that collects data from Binance, stores it in Supabase and updates a Google Sheets spreadsheet in real time.
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
-![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Automated-green)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Actions-purple)
 ![Binance API](https://img.shields.io/badge/Binance-API-yellow)
+![CoinGecko API](https://img.shields.io/badge/CoinGecko-API-green)
 
 ## 📋 Table of Contents
 
