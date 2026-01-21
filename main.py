@@ -16,7 +16,7 @@ except ImportError:
 
 # Configurações
 BINANCE_API_URL = "https://api.binance.com/api/v3"
-SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LINKUSDT", "SOLUSDT", "XRPUSDT"]
+SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]
 
 class CryptoMonitor:
     def __init__(self):
@@ -106,16 +106,35 @@ class CryptoMonitor:
     
     def save_to_supabase(self, prices_data: List[Dict]):
         """Salva dados no Supabase"""
+        if not prices_data:
+            print("⚠️  Nenhum dado para salvar no Supabase")
+            return
+        
         try:
+            saved_count = 0
             for data in prices_data:
-                self.supabase.table("crypto_prices").insert(data).execute()
-            print(f"✅ {len(prices_data)} registros salvos no Supabase")
+                try:
+                    result = self.supabase.table("crypto_prices").insert(data).execute()
+                    saved_count += 1
+                    print(f"  ✓ {data['symbol']}: ${data['price']:.2f}")
+                except Exception as e:
+                    print(f"  ✗ Erro ao salvar {data['symbol']}: {e}")
+            
+            print(f"✅ {saved_count}/{len(prices_data)} registros salvos no Supabase")
         except Exception as e:
-            print(f"❌ Erro ao salvar no Supabase: {e}")
+            print(f"❌ Erro geral ao salvar no Supabase: {e}")
+            import traceback
+            traceback.print_exc()
     
     def update_google_sheets(self, prices_data: List[Dict]):
         """Atualiza Google Sheets"""
+        if not prices_data:
+            print("⚠️  Nenhum dado para atualizar no Google Sheets")
+            return
+        
         try:
+            print(f"📝 Preparando dados para {len(prices_data)} criptomoedas...")
+            
             # Cabeçalho
             headers = [
                 "Criptomoeda", 
@@ -136,9 +155,13 @@ class CryptoMonitor:
                     datetime.fromisoformat(data["timestamp"]).strftime("%d/%m/%Y %H:%M:%S")
                 ])
             
+            print(f"📤 Enviando {len(rows)} linhas para Google Sheets...")
+            
             # Limpa e atualiza a planilha
             self.sheet.clear()
             self.sheet.update('A1', rows)
+            
+            print(f"🎨 Aplicando formatação...")
             
             # Formata cabeçalho
             self.sheet.format('A1:E1', {
@@ -150,24 +173,46 @@ class CryptoMonitor:
             
         except Exception as e:
             print(f"❌ Erro ao atualizar Google Sheets: {e}")
+            import traceback
+            traceback.print_exc()
     
     def run(self):
         """Executa o processo completo"""
-        print("🚀 Iniciando coleta de dados...")
+        print("=" * 60)
+        print("🚀 CRYPTO MONITOR - Iniciando coleta de dados...")
+        print("=" * 60)
+        print()
         
         # 1. Obtém preços
+        print("1️⃣  Coletando preços da Binance...")
         prices_data = self.get_binance_prices()
-        print(f"📊 Obtidos {len(prices_data)} preços da Binance")
+        
+        if not prices_data:
+            print("❌ Nenhum dado coletado da Binance. Encerrando.")
+            return
+        
+        print(f"✅ Obtidos {len(prices_data)} preços da Binance")
+        print()
+        
+        # Mostra resumo dos dados coletados
+        print("📊 Resumo dos dados coletados:")
+        for data in prices_data:
+            print(f"  • {data['symbol']}: ${data['price']:,.2f} ({data['price_change_24h']:+.2f}%)")
+        print()
         
         # 2. Salva no Supabase
-        if prices_data:
-            self.save_to_supabase(prices_data)
+        print("2️⃣  Salvando no Supabase...")
+        self.save_to_supabase(prices_data)
+        print()
         
         # 3. Atualiza Google Sheets
-        if prices_data:
-            self.update_google_sheets(prices_data)
+        print("3️⃣  Atualizando Google Sheets...")
+        self.update_google_sheets(prices_data)
+        print()
         
-        print("✨ Processo concluído!")
+        print("=" * 60)
+        print("✨ PROCESSO CONCLUÍDO COM SUCESSO!")
+        print("=" * 60)
 
 if __name__ == "__main__":
     monitor = CryptoMonitor()
