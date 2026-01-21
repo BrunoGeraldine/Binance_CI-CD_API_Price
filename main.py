@@ -16,7 +16,7 @@ except ImportError:
 
 # Configurações
 BINANCE_API_URL = "https://api.binance.com/api/v3"
-SYMBOLS = ["BTCUSDC", "ETHUSDC", "BNBUSDC", "ADAUSDC", "SOLUSDC"]
+SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]
 
 class CryptoMonitor:
     def __init__(self):
@@ -102,8 +102,7 @@ class CryptoMonitor:
                 
                 # Se der erro 451, tenta API alternativa
                 if response.status_code == 451:
-                    print(f"⚠️  Binance bloqueou requisição para {symbol}, tentando API alternativa...")
-                    # Tenta API da Binance US ou outras exchanges
+                    print(f"⚠️  {symbol}: Bloqueado geograficamente (erro 451), usando API alternativa...")
                     alt_response = self._get_price_from_alternative(symbol)
                     if alt_response:
                         prices_data.append(alt_response)
@@ -120,12 +119,18 @@ class CryptoMonitor:
                     "price": float(data["lastPrice"]),
                     "volume_24h": float(data["volume"]),
                     "price_change_24h": float(data["priceChangePercent"]),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
+                    "source": "Binance"
                 })
                 
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 451:
-                    print(f"⚠️  {symbol}: Bloqueado geograficamente (erro 451)")
+                    print(f"⚠️  {symbol}: Bloqueado geograficamente (erro 451), usando API alternativa...")
+                    alt_response = self._get_price_from_alternative(symbol)
+                    if alt_response:
+                        prices_data.append(alt_response)
+                    else:
+                        print(f"  ✗ Não foi possível obter preço de {symbol}")
                 else:
                     print(f"  ✗ Erro HTTP ao obter {symbol}: {e}")
             except Exception as e:
@@ -138,11 +143,11 @@ class CryptoMonitor:
         try:
             # Mapeia símbolos da Binance para IDs do CoinGecko
             symbol_map = {
-                "BTCUSDC": "bitcoin",
-                "ETHUSDC": "ethereum",
-                "BNBUSDC": "binancecoin",
-                "ADAUSDC": "cardano",
-                "SOLUSDC": "solana"
+                "BTCUSDT": "bitcoin",
+                "ETHUSDT": "ethereum",
+                "BNBUSDT": "binancecoin",
+                "ADAUSDT": "cardano",
+                "SOLUSDT": "solana"
             }
             
             coin_id = symbol_map.get(symbol)
@@ -170,7 +175,8 @@ class CryptoMonitor:
                     "price": float(coin_data["usd"]),
                     "volume_24h": float(coin_data.get("usd_24h_vol", 0)),
                     "price_change_24h": float(coin_data.get("usd_24h_change", 0)),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
+                    "source": "CoinGecko"
                 }
             
         except Exception as e:
@@ -212,7 +218,7 @@ class CryptoMonitor:
             # Cabeçalho
             headers = [
                 "Criptomoeda", 
-                "Preço (USDC)", 
+                "Preço (USDT)", 
                 "Variação 24h (%)", 
                 "Volume 24h",
                 "Última Atualização"
@@ -222,7 +228,7 @@ class CryptoMonitor:
             rows = [headers]
             for data in prices_data:
                 rows.append([
-                    data["symbol"].replace("USDC", ""),
+                    data["symbol"].replace("USDT", ""),
                     f"${data['price']:,.2f}",
                     f"{data['price_change_24h']:.2f}%",
                     f"${data['volume_24h']:,.0f}",
@@ -238,7 +244,7 @@ class CryptoMonitor:
             print(f"🎨 Aplicando formatação...")
             
             # Formata cabeçalho
-            self.sheet.format('A1:E1', {
+            self.sheet.format('A1:F1', {
                 "backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.2},
                 "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}
             })
