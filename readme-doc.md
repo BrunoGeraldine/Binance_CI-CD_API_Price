@@ -429,7 +429,7 @@ Este projeto é apenas para fins educacionais e de monitoramento. Não constitui
 ### Planilha Google Sheets
 A planilha será atualizada automaticamente com os dados mais recentes:
 
-| Criptomoeda | Preço (USDT) | Variação 24h (%) | Volume 24h | Última Atualização |
+| Criptomoeda | Preço (USDC) | Variação 24h (%) | Volume 24h | Última Atualização |
 |-------------|--------------|------------------|------------|--------------------|
 | BTC | $43,250.50 | +2.34% | $28,543,000,000 | 20/01/2026 14:30:00 |
 | ETH | $2,845.75 | -1.12% | $15,234,000,000 | 20/01/2026 14:30:00 |

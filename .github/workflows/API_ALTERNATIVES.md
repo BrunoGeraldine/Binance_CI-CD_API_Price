@@ -36,7 +36,7 @@ O código agora usa um **sistema de fallback automático**:
 
 **Endpoint usado:**
 ```
-https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT
+https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDC
 ```
 
 ### CoinGecko API
@@ -62,7 +62,7 @@ https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&incl
 ```python
 # 1. Tenta Binance
 try:
-    response = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT")
+    response = requests.get("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDC")
     if response.status_code == 451:
         # 2. Se bloqueado, usa CoinGecko
         alternative_data = get_from_coingecko("bitcoin")
@@ -75,11 +75,11 @@ except:
 
 | Binance | CoinGecko ID | Nome |
 |---------|-------------|------|
-| BTCUSDT | bitcoin | Bitcoin |
-| ETHUSDT | ethereum | Ethereum |
-| BNBUSDT | binancecoin | BNB |
-| ADAUSDT | cardano | Cardano |
-| SOLUSDT | solana | Solana |
+| BTCUSDC | bitcoin | Bitcoin |
+| ETHUSDC | ethereum | Ethereum |
+| BNBUSDC | binancecoin | BNB |
+| ADAUSDC | cardano | Cardano |
+| SOLUSDC | solana | Solana |
 
 ## 📝 Outras Alternativas Possíveis
 
@@ -101,7 +101,7 @@ url = "https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
 
 ### 3. Binance US
 ```python
-url = "https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSDT"
+url = "https://api.binance.us/api/v3/ticker/24hr?symbol=BTCUSDC"
 # Alternativa da Binance para EUA
 # Pode estar acessível de servidores GitHub
 ```
@@ -122,8 +122,8 @@ url = "https://api.kraken.com/0/public/Ticker?pair=XBTUSD"
 def _get_price_from_kraken(self, symbol: str) -> Dict:
     # Mapeamento de símbolos
     symbol_map = {
-        "BTCUSDT": "XBTUSD",
-        "ETHUSDT": "ETHUSD",
+        "BTCUSDC": "XBTUSD",
+        "ETHUSDC": "ETHUSD",
         # ...
     }
     
@@ -151,8 +151,8 @@ if not alt_response:
 Para monitorar qual API está sendo usada, o código imprime:
 
 ```
-✓ BTCUSDT: $89,261.45  # Binance funcionou
-✓ ETHUSDT: Obtido de CoinGecko  # Binance falhou, usou CoinGecko
+✓ BTCUSDC: $89,261.45  # Binance funcionou
+✓ ETHUSDC: Obtido de CoinGecko  # Binance falhou, usou CoinGecko
 ```
 
 ## ⚡ Performance
