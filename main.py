@@ -16,7 +16,7 @@ except ImportError:
 
 # Configurações
 BINANCE_API_URL = "https://api.binance.com/api/v3"
-SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]
+SYMBOLS = ["BTCUSDC", "ETHUSDC", "BNBUSDC", "ADAUSDC", "SOLUSDC"]
 
 class CryptoMonitor:
     def __init__(self):
@@ -138,7 +138,7 @@ class CryptoMonitor:
             # Cabeçalho
             headers = [
                 "Criptomoeda", 
-                "Preço (USDT)", 
+                "Preço (USDC)", 
                 "Variação 24h (%)", 
                 "Volume 24h",
                 "Última Atualização"
@@ -148,7 +148,7 @@ class CryptoMonitor:
             rows = [headers]
             for data in prices_data:
                 rows.append([
-                    data["symbol"].replace("USDT", ""),
+                    data["symbol"].replace("USDC", ""),
                     f"${data['price']:,.2f}",
                     f"{data['price_change_24h']:.2f}%",
                     f"${data['volume_24h']:,.0f}",
